@@ -1,0 +1,5 @@
+/.env
+/settings.py
+
+.*.sw?
+*.pyc

@@ -1,5 +1,6 @@
 import json
 import requests
+from copy import copy
 from urllib import urlencode
 
 from settings import client_id, client_secret
@@ -24,9 +25,9 @@ class APIClient(object):
     refresh_token = None
 
     def __init__(self, code):
-        self.get_token(code)
+        self.request_token(code)
 
-    def get_token(self, code=None):
+    def request_token(self, code=None):
         if code is None and self.refresh_token is None:
             raise Exception('The `code` argument is required on the first '
                             'call to get_token')
@@ -59,3 +60,20 @@ class APIClient(object):
         self.access_token = j['access_token']
         if code is not None:
             self.refresh_token = j['refresh_token']
+
+    def get(self, path, params, process):
+        nextPageToken = True
+        while nextPageToken is not None:
+            url = 'https://www.googleapis.com/youtube/v3' + path
+            headers = {'Authorization': 'Bearer ' + self.access_token}
+
+            page_params = copy(params)
+
+            if isinstance(nextPageToken, basestring):
+                page_params['pageToken'] = nextPageToken
+            j = json.loads(
+                requests.get(url, params=page_params, headers=headers).text)
+            for item in j['items']:
+                process(item)
+
+            nextPageToken = j.get('nextPageToken', None)

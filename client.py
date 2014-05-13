@@ -73,6 +73,8 @@ class APIClient(object):
                 page_params['pageToken'] = nextPageToken
             j = json.loads(
                 requests.get(url, params=page_params, headers=headers).text)
+            if 'error' in j:
+                raise Exception(j['error'])
             for item in j['items']:
                 process(item)
 

@@ -30,7 +30,7 @@ def get_playlist_videos(client, playlist_id):
     def process(item):
         snippet = item['snippet']
         v = {
-            'watch_id': snippet['resourceId']['videoId'],
+            'id': snippet['resourceId']['videoId'],
             'title': snippet['title'],
             'description': snippet['description'],
             'position': snippet['position'],

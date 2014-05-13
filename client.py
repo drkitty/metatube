@@ -30,7 +30,7 @@ class APIClient(object):
     def request_token(self, code=None):
         if code is None and self.refresh_token is None:
             raise Exception('The `code` argument is required on the first '
-                            'call to get_token')
+                            'call to request_token')
 
         # Assemble POST data
 

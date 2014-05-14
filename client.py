@@ -24,27 +24,37 @@ class APIClient(object):
     access_token = None
     refresh_token = None
 
-    def __init__(self, code):
-        self.request_token(code)
+    def retrieve_stored_tokens(self):
+        try:
+            with open('tokens.txt', 'r') as token_file:
+                tokens = json.load(token_file)
 
-    def request_token(self, code=None):
-        if code is None and self.refresh_token is None:
-            raise Exception('The `code` argument is required on the first '
-                            'call to request_token')
+            self.access_token = tokens['access']
+            self.refresh_token = tokens['refresh']
+        except IOError as e:
+            if e.errno != 2:  # 'No such file or directory'
+                raise()
+
+    def store_tokens(self):
+        with open('tokens.txt', 'w') as token_file:
+            json.dump({
+                'access': self.access_token,
+                'refresh': self.refresh_token,
+            }, token_file)
+
+    def get_token_pair(self, code=None):
+        if code is None:
+            retrieve_stored_tokens()
 
         # Assemble POST data
 
         post_data = {
             'client_id': client_id,
             'client_secret': client_secret,
+            'code': code,
+            'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob',
+            'grant_type': 'authorization_code',
         }
-        if code is None:
-            post_data['refresh_token'] = self.refresh_token
-            post_data['grant_type'] = 'refresh_token'
-        else:
-            post_data['code'] = code
-            post_data['redirect_uri'] = 'urn:ietf:wg:oauth:2.0:oob'
-            post_data['grant_type'] = 'authorization_code'
 
         # Make token request
 
@@ -58,8 +68,35 @@ class APIClient(object):
         # Extract token(s)
 
         self.access_token = j['access_token']
-        if code is not None:
-            self.refresh_token = j['refresh_token']
+        self.refresh_token = j['refresh_token']
+
+        self.store_tokens()
+
+    def refresh(self):
+        if self.refresh_token is None:
+            raise Exception('You must call get_token_pair first.')
+
+        # Assemble POST data
+
+        post_data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'refresh_token': self.refresh_token,
+            'grant_type': 'refresh_token',
+        }
+
+        # Make token request
+
+        response = requests.post(
+            'https://accounts.google.com/o/oauth2/token', data=post_data)
+        j = json.loads(response.text)
+        if 'error' in j:
+            raise Exception(
+                '{}: {}'.format(j['error'], j['error_description']))
+
+        # Extract token(s)
+
+        self.access_token = j['access_token']
 
     def get(self, path, params, process):
         nextPageToken = True
@@ -71,8 +108,22 @@ class APIClient(object):
 
             if isinstance(nextPageToken, basestring):
                 page_params['pageToken'] = nextPageToken
-            j = json.loads(
-                requests.get(url, params=page_params, headers=headers).text)
+
+            refresh_tries = 0
+            while True:
+                response = requests.get(url, params=page_params,
+                                        headers=headers)
+                if response.status_code == 401:
+                    if refresh_tries < 2:
+                        self.refresh()
+                        refresh_tries += 1
+                    else:
+                        raise Exception('Something went wrong')
+                else:
+                    break
+
+            j = json.loads(response.text)
+
             if 'error' in j:
                 raise Exception(j['error'])
             for item in j['items']:

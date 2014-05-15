@@ -24,6 +24,9 @@ class APIClient(object):
     access_token = None
     refresh_token = None
 
+    def __init__(self):
+        self.retrieve_stored_tokens()
+
     def retrieve_stored_tokens(self):
         try:
             with open('tokens.txt', 'r') as token_file:
@@ -43,9 +46,6 @@ class APIClient(object):
             }, token_file)
 
     def get_token_pair(self, code=None):
-        if code is None:
-            retrieve_stored_tokens()
-
         # Assemble POST data
 
         post_data = {
@@ -98,6 +98,8 @@ class APIClient(object):
 
         self.access_token = j['access_token']
 
+        self.store_tokens()
+
     def get(self, path, params, process):
         nextPageToken = True
         while nextPageToken is not None:
@@ -118,7 +120,7 @@ class APIClient(object):
                         self.refresh()
                         refresh_tries += 1
                     else:
-                        raise Exception('Something went wrong')
+                        raise Exception('Refresh failed or something')
                 else:
                     break
 

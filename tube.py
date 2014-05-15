@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import dateutil.parser
 
 
-def get_playlists(client):
+def get_user_playlists(client):
     playlists = []
 
     def process(item):

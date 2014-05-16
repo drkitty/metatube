@@ -101,11 +101,10 @@ class APIClient(object):
         self.store_tokens()
 
     def get(self, path, params, process):
+        url = 'https://www.googleapis.com/youtube/v3' + path
+
         nextPageToken = True
         while nextPageToken is not None:
-            url = 'https://www.googleapis.com/youtube/v3' + path
-            headers = {'Authorization': 'Bearer ' + self.access_token}
-
             page_params = copy(params)
 
             if isinstance(nextPageToken, basestring):
@@ -113,6 +112,7 @@ class APIClient(object):
 
             refresh_tries = 0
             while True:
+                headers = {'Authorization': 'Bearer ' + self.access_token}
                 response = requests.get(url, params=page_params,
                                         headers=headers)
                 if response.status_code == 401:
@@ -120,7 +120,7 @@ class APIClient(object):
                         self.refresh()
                         refresh_tries += 1
                     else:
-                        raise Exception('Refresh failed or something')
+                        raise Exception('Refresh failed')
                 else:
                     break
 

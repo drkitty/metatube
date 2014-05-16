@@ -3,10 +3,12 @@ from __future__ import unicode_literals
 import dateutil.parser
 
 
-def get_user_playlists(client):
+def get_my_playlists(client):
     playlists = []
 
-    def process(item):
+    # normal playlists
+
+    def process_playlist(item):
         snippet = item['snippet']
         p = {
             'id': item['id'],
@@ -15,12 +17,26 @@ def get_user_playlists(client):
         }
         playlists.append(p)
 
-    params = {
+    client.get('/playlists', {
         'part': 'snippet',
         'mine': 'true',
-    }
+    }, process_playlist)
 
-    client.get('/playlists', params, process)
+    # special playlists
+
+    def process_channel(item):
+        special_playlists = item['contentDetails']['relatedPlaylists']
+
+        client.get('/playlists', {
+            'part': 'snippet',
+            'id': ','.join(special_playlists[title]
+                           for title in ('favorites', 'likes')),
+        }, process_playlist)
+
+    client.get('/channels', {
+        'part': 'contentDetails',
+        'mine': 'true',
+    }, process_channel)
 
     return playlists
 

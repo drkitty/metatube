@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy import (create_engine, Column, DateTime, ForeignKey, Integer,
+                        String, Text)
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -19,6 +20,8 @@ class Video(Base):
     id = Column(String(16), primary_key=True)
     title = Column(String(100))
     description = Column(Text)
+    data_published = Column(DateTime)
+
 
 class Playlist(Base):
     __tablename__ = 'playlist'
@@ -26,3 +29,11 @@ class Playlist(Base):
     id = Column(String(40), primary_key=True)
     title = Column(String(60))
     description = Column(Text)
+
+
+class PlaylistVideo(Base):
+    __tablename__ = 'playlistvideo'
+
+    video = Column(String(16), ForeignKey('video.id'), primary_key=True)
+    playlist = Column(String(40), ForeignKey('playlist.id'), primary_key=True)
+    position = Column(Integer)

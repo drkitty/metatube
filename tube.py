@@ -3,6 +3,20 @@ from __future__ import unicode_literals
 import dateutil.parser
 
 
+def get_channel_ids(client, username):
+    channel_ids = []
+
+    def process_channel(item):
+        channel_ids.append(item['id'])
+
+    client.get('/channels', {
+        'part': 'id',
+        'forUsername': username,
+    }, process_channel)
+
+    return channel_ids
+
+
 def get_normal_playlists(client, channel_id=None):
     playlists = []
 

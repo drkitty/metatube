@@ -1,4 +1,11 @@
 client_id = 'FIXME'
 client_secret = 'FIXME'
 
+database = {
+    'host': 'FIXME',
+    'user': 'FIXME',
+	'passwd': 'FIXME',
+    'db': 'FIXME',
+}
+
 debug = False

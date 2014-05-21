@@ -20,7 +20,7 @@ def build_authentication_request_url():
 authentication_request_url = build_authentication_request_url()
 
 
-class APIClient(object):
+class GoogleAPIClient(object):
     access_token = None
     refresh_token = None
 
@@ -36,7 +36,7 @@ class APIClient(object):
             self.refresh_token = tokens['refresh']
         except IOError as e:
             if e.errno != 2:  # 'No such file or directory'
-                raise()
+                raise
 
     def store_tokens(self):
         with open('tokens.txt', 'w') as token_file:
@@ -102,6 +102,8 @@ class APIClient(object):
 
     def get(self, path, params, process):
         url = 'https://www.googleapis.com/youtube/v3' + path
+
+        params['maxResults'] = '50'
 
         nextPageToken = True
         while nextPageToken is not None:

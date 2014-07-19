@@ -21,3 +21,7 @@ me = s.query(data.Channel).first()
 del s
 
 me.fetch_normal_playlists(c)
+
+s = data.Session()
+for playlist in s.query(data.Playlist):
+    playlist.fetch_playlist_videos(c)

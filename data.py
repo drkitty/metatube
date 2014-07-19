@@ -64,8 +64,8 @@ class Playlist(Base):
             )
             session.merge(v)
             session.merge(PlaylistVideo(
-                video=v,
-                playlist=self,
+                video_id=v.id,
+                playlist_id=self.id,
                 position=snippet['position'],
             ))
 

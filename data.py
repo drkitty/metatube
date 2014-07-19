@@ -28,7 +28,7 @@ class Video(Base):
     playlist_videos = relationship('PlaylistVideo', backref='video')
 
     def __repr__(self):
-        return '<Video "{}">'.format(self.title.encode('ascii', 'replace'))
+        return '<Video: "{}">'.format(self.title.encode('ascii', 'replace'))
 
 
 class Playlist(Base):
@@ -41,7 +41,7 @@ class Playlist(Base):
     playlist_videos = relationship('PlaylistVideo', backref='playlist')
 
     def __repr__(self):
-        return '<Playlist "{}">'.format(self.title.encode('ascii', 'replace'))
+        return '<Playlist: "{}">'.format(self.title.encode('ascii', 'replace'))
 
     def fetch_playlist_videos(self, client):
         session = Session()
@@ -98,7 +98,7 @@ class Channel(Base):
     videos = relationship('Video', backref='channel')
 
     def __repr__(self):
-        return '<Channel "{}">'.format(self.title.encode('ascii', 'replace'))
+        return '<Channel: "{}">'.format(self.title.encode('ascii', 'replace'))
 
     @classmethod
     def fetch_channel(cls, client, channel_id):

@@ -1,4 +1,5 @@
 import dateutil.parser
+import oursql
 from sqlalchemy import (
     create_engine, Boolean, Column, DateTime, ForeignKey, Integer, String,
     Text
@@ -9,8 +10,18 @@ from sqlalchemy.ext.declarative import declarative_base
 import settings
 
 
+def utf8mb4_connect(**kwargs):
+    connection = oursql.Connection(
+        host=settings.database['host'], user=settings.database['user'],
+        db=settings.database['db'], **kwargs)
+    cursor = connection.cursor()
+    cursor.execute("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_bin'")
+    return connection
+
+
 engine = create_engine('mysql+oursql://metatube@localhost/metatubedb',
-                       echo=settings.debug)
+                       echo=settings.debug, encoding='utf_8',
+                       creator=utf8mb4_connect)
 
 Base = declarative_base()
 

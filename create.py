@@ -19,7 +19,7 @@ if __name__ == '__main__':
         cursor.execute('DROP DATABASE {}'.format(settings.database['db']))
     except oursql.ProgrammingError:  # database doesn't exist
         pass
-    cursor.execute('CREATE DATABASE {} CHARACTER SET utf8 COLLATE utf8_bin'
-                   .format(settings.database['db']))
+    cursor.execute('CREATE DATABASE {} CHARACTER SET utf8mb4 '
+                   'COLLATE utf8mb4_bin'.format(settings.database['db']))
 
     Base.metadata.create_all(engine)

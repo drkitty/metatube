@@ -108,11 +108,16 @@ class Channel(Base):
     playlists = relationship('Playlist', backref='channel')
     videos = relationship('Video', backref='channel')
 
+    fetched = set()
+
     def __repr__(self):
         return '<Channel: "{}">'.format(self.title.encode('ascii', 'replace'))
 
     @classmethod
     def fetch_channel(cls, client, channel_id):
+        if channel_id in cls.fetched:
+            return
+
         session = Session()
 
         def process_channel(item):
@@ -130,7 +135,7 @@ class Channel(Base):
         }, process_channel)
 
         session.commit()
-
+        cls.fetched.add(channel_id)
 
     @classmethod
     def fetch_user_channel(cls, client, username=None):

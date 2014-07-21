@@ -25,3 +25,9 @@ me.fetch_normal_playlists(c)
 s = data.Session()
 for playlist in s.query(data.Playlist):
     playlist.fetch_playlist_videos(c)
+del s
+
+s = data.Session()
+for video in s.query(data.Video):
+    video.download()
+del s

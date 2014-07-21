@@ -2,4 +2,4 @@ oursql==0.9.3.1
 python-dateutil==2.2
 requests==2.2.1
 SQLAlchemy==0.9.4
-youtube-dl==2014.07.20.2
+youtube-dl

@@ -1,5 +1,8 @@
 import dateutil.parser
+import subprocess
+
 import oursql
+import requests
 from sqlalchemy import (
     create_engine, Boolean, Column, DateTime, ForeignKey, Integer, String,
     Text
@@ -8,6 +11,9 @@ from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 import settings
+
+
+CHUNK_SIZE = 100000
 
 
 def utf8mb4_connect(**kwargs):
@@ -40,6 +46,19 @@ class Video(Base):
 
     def __repr__(self):
         return '<Video: "{}">'.format(self.title.encode('ascii', 'replace'))
+
+    def download(self):
+        p = subprocess.Popen(
+            ('youtube-dl', '-g', 'https://www.youtube.com/watch?v=' + self.id),
+            stdout=subprocess.PIPE)
+        url, _ = p.communicate()
+        url = url.strip()
+        if p.returncode != 0:
+            raise Exception('youtube-dl failed')
+        with open('dl/' + self.id, 'w') as f:
+            for chunk in requests.get(url, stream=True).iter_content(
+                    CHUNK_SIZE):
+                f.write(chunk)
 
 
 class Playlist(Base):

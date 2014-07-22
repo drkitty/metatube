@@ -1,5 +1,8 @@
 import dateutil.parser
+import os
+import os.path
 import subprocess
+from sys import stderr
 
 import oursql
 import requests
@@ -43,22 +46,43 @@ class Video(Base):
     date_published = Column(DateTime)
     channel_id = Column(String(40), ForeignKey('channel.id'))
     playlist_videos = relationship('PlaylistVideo', backref='video')
+    downloaded = Column(Boolean)
 
     def __repr__(self):
         return '<Video: "{}">'.format(self.title.encode('ascii', 'replace'))
 
     def download(self):
+        try:
+            if os.path.getsize('dl/' + self.id) != 0:
+                return
+        except OSError as e:
+            if e.errno != 2:  # 'No such file or directory'
+                raise
+
         p = subprocess.Popen(
             ('youtube-dl', '-g', 'https://www.youtube.com/watch?v=' + self.id),
             stdout=subprocess.PIPE)
         url, _ = p.communicate()
         url = url.strip()
         if p.returncode != 0:
-            raise Exception('youtube-dl failed')
-        with open('dl/' + self.id, 'w') as f:
+            stderr.write('youtube-dl failed with error code {}\n'.format(
+                p.returncode))
+            return
+        with open('temp', 'w') as f:
             for chunk in requests.get(url, stream=True).iter_content(
                     CHUNK_SIZE):
                 f.write(chunk)
+
+        try:
+            os.mkdir('dl')
+        except OSError as e:
+            if e.errno != 17:  # 'File exists'
+                raise
+        os.rename('temp', 'dl/' + self.id)
+        self.downloaded = True
+        session = Session()
+        session.merge(self)
+        session.commit()
 
 
 class Playlist(Base):

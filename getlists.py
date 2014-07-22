@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import data
 from client import authentication_request_url, GoogleAPIClient
 
@@ -21,13 +23,9 @@ me = s.query(data.Channel).first()
 del s
 
 me.fetch_normal_playlists(c)
+me.fetch_special_playlists(c, names=('favorites',))
 
 s = data.Session()
 for playlist in s.query(data.Playlist):
     playlist.fetch_playlist_videos(c)
-del s
-
-s = data.Session()
-for video in s.query(data.Video):
-    video.download()
 del s

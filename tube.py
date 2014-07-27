@@ -9,14 +9,15 @@ from data import Channel, EverythingManager, Playlist, Session, Video
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-u', '--update', action='store_true')
-    parser.add_argument('-d', '--download', action='store_true')
-    parser.add_argument('--list-channels', action='store_true')
-    parser.add_argument('-l', '--list-playlists', action='store_true')
-    parser.add_argument('-f', '--find-playlists', action='store_true')
-    parser.add_argument('-p', '--add-playlists')
-    parser.add_argument('-a', '--add-my-playlists', action='store_true')
-    parser.add_argument('-c', '--add-channels')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-u', '--update', action='store_true')
+    group.add_argument('-d', '--download', action='store_true')
+    group.add_argument('--list-channels', action='store_true')
+    group.add_argument('-l', '--list-playlists', action='store_true')
+    group.add_argument('-f', '--find-playlists', action='store_true')
+    group.add_argument('-p', '--add-playlists')
+    group.add_argument('-a', '--add-my-playlists', action='store_true')
+    group.add_argument('-c', '--add-channels')
     args = parser.parse_args()
 
     with EverythingManager() as mgr:

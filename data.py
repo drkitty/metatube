@@ -216,9 +216,10 @@ class Channel(Base):
 
             cls.fetched.add(item['id'])
 
-            current = mgr.session.query(Channel).get(item['id'])
-            if current is not None:
-                tracked = current.tracked if track is None else track
+            old = mgr.session.query(Channel).get(item['id'])
+            if old is not None:
+                tracked = old.tracked if track is None else track
+                mine = old.mine
             else:
                 tracked = False if track is None else track
 

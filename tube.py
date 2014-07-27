@@ -13,6 +13,7 @@ def main():
     parser.add_argument('-l', '--list-playlists', action='store_true')
     parser.add_argument('-f', '--find-playlists', action='store_true')
     parser.add_argument('-p', '--add-playlists')
+    parser.add_argument('-a', '--add-my-playlists', action='store_true')
     parser.add_argument('-c', '--add-channels')
     args = parser.parse_args()
 
@@ -42,6 +43,12 @@ def main():
                                        track=True)
         if args.add_playlists:
             Playlist.fetch_playlists(mgr, args.add_playlists.split(','))
+        if args.add_my_playlists:
+            channel = mgr.session.query(Channel).filter(
+                Channel.tracked == True).first()
+            playlists = channel.find_playlists(mgr)
+            playlist_ids = [playlist['id'] for playlist in playlists]
+            Playlist.fetch_playlists(mgr, playlist_ids)
         if args.update:
             for playlist in mgr.session.query(Playlist):
                 print '{} (~{})'.format(playlist.title, playlist.channel.title)

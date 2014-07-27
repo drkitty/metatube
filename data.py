@@ -37,6 +37,11 @@ Base = declarative_base()
 Session = sessionmaker(bind=engine)
 
 
+def format_playlist(playlist_id, playlist_title, channel_title):
+    return '{:>35}  {} (~{})'.format(
+        playlist_id, playlist_title, channel_title)
+
+
 class Video(Base):
     __tablename__ = 'video'
 
@@ -97,16 +102,38 @@ class Playlist(Base):
     def __repr__(self):
         return '<Playlist: "{}">'.format(self.title.encode('ascii', 'replace'))
 
+    @classmethod
+    def fetch_playlists(cls, client, ids):
+        session = Session()
+
+        def process_playlist(item):
+            snippet = item['snippet']
+
+            Channel.fetch_channels(client, ids=(snippet['channelId'],))
+
+            session.merge(Playlist(
+                id=item['id'],
+                title=snippet['title'],
+                description=snippet['description'],
+                channel_id=snippet['channelId'],
+            ))
+
+        client.get('/playlists', {
+            'part': 'snippet',
+            'id': ','.join(ids),
+        }, process_playlist)
+
+        session.commit()
+
+
     def fetch_playlist_videos(self, client):
         session = Session()
 
-        fetched_channel_ids = []
-
-        def process(item):
+        def process_video(item):
             snippet = item['snippet']
 
             print snippet['channelId']
-            Channel.fetch_channel(client, snippet['channelId'])
+            Channel.fetch_channels(client, ids=(snippet['channelId'],))
 
             v = Video(
                 id=snippet['resourceId']['videoId'],
@@ -123,12 +150,10 @@ class Playlist(Base):
                 position=snippet['position'],
             ))
 
-        params = {
+        client.get('/playlistItems', {
             'part': 'id,snippet',
             'playlistId': self.id,
-        }
-
-        client.get('/playlistItems', params, process)
+        }, process_video)
 
         session.commit()
 
@@ -148,6 +173,8 @@ class Channel(Base):
     id = Column(String(40), primary_key=True)
     title = Column(String(200))
     description = Column(Text)
+    mine = Column(Boolean)
+    tracked = Column(Boolean)
     playlists = relationship('Playlist', backref='channel')
     videos = relationship('Video', backref='channel')
 
@@ -157,53 +184,59 @@ class Channel(Base):
         return '<Channel: "{}">'.format(self.title.encode('ascii', 'replace'))
 
     @classmethod
-    def fetch_channel(cls, client, channel_id):
-        if channel_id in cls.fetched:
+    def fetch_channels(cls, client, ids=(), username=None, track=False):
+        get_mine = bool(not ids and not username)
+
+        ids = filter(lambda id: id not in cls.fetched, ids)
+        if not ids and not username and not get_mine:
             return
+        if ids and username:
+            raise Exception(
+                'You cannot call this method with both `ids` and `username`')
 
+        fetched = set()
         session = Session()
 
         def process_channel(item):
             snippet = item['snippet']
 
-            session.merge(Channel(
-                id=item['id'],
-                title=snippet['title'],
-                description=snippet['description'],
-            ))
-
-        client.get('/channels', {
-            'part': 'id,snippet',
-            'id': channel_id,
-        }, process_channel)
-
-        session.commit()
-        cls.fetched.add(channel_id)
-
-    @classmethod
-    def fetch_user_channel(cls, client, username=None):
-        session = Session()
-
-        def process_channel(item):
-            snippet = item['snippet']
+            fetched.add(item['id'])
 
             session.merge(Channel(
                 id=item['id'],
                 title=snippet['title'],
                 description=snippet['description'],
+                mine=get_mine,
+                tracked=track,
             ))
 
         params = {'part': 'id,snippet'}
-        if username is None:
+        if get_mine:
             params['mine'] = 'true'
+        elif ids:
+            params['id'] = ','.join(ids)
+        elif username:
+            params['forUsername'] = ','.join(ids)
         else:
-            params['forUsername'] = username
-
+            return
         client.get('/channels', params, process_channel)
 
         session.commit()
+        cls.fetched.update(fetched)
 
-    def fetch_normal_playlists(self, client):
+    def list_normal_playlists(self, client):
+        def process_playlist(item):
+            snippet = item['snippet']
+
+            print format_playlist(
+                item['id'], item['snippet']['title'], self.title)
+
+        client.get('/playlists', {
+            'part': 'snippet',
+            'channelId': self.id,
+        }, process_playlist)
+
+    def fetch_playlists(self, client, ids=()):
         session = Session()
 
         def process_playlist(item):
@@ -218,37 +251,29 @@ class Channel(Base):
 
         client.get('/playlists', {
             'part': 'snippet',
-            'channelId': self.id,
+            'id': ','.join(ids),
         }, process_playlist)
 
         session.commit()
 
-    def fetch_special_playlists(self, client, names=()):
-        session = Session()
-
+    def list_special_playlists(self, client):
         def process_playlist(item):
             snippet = item['snippet']
 
-            session.merge(Playlist(
-                id=item['id'],
-                title=snippet['title'],
-                description=snippet['description'],
-                channel_id=self.id,
-            ))
+            print format_playlist(
+                item['id'], item['snippet']['title'], self.title)
 
         def process_channel(item):
             special_playlists = item['contentDetails']['relatedPlaylists']
-            selected_playlist_ids = [special_playlists[name] for name in names
-                                     if name in special_playlists]
+            playlist_ids = special_playlists.itervalues()
 
             client.get('/playlists', {
                 'part': 'id,snippet',
-                'id': ','.join(selected_playlist_ids),
+                'id': ','.join(playlist_ids),
             }, process_playlist)
+
 
         client.get('/channels', {
             'part': 'contentDetails',
             'id': self.id,
         }, process_channel)
-
-        session.commit()

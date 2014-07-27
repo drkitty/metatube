@@ -197,10 +197,10 @@ class Channel(Base):
 
     @classmethod
     def fetch_channels(cls, mgr, ids=(), username=None, track=None):
-        mine = bool(not ids and not username)
+        get_mine = bool(not ids and not username)
 
         ids = filter(lambda id: id not in cls.fetched, ids)
-        if not ids and not username and not mine:
+        if not ids and not username and not get_mine:
             return
         if ids and username:
             raise Exception(
@@ -214,20 +214,21 @@ class Channel(Base):
             old = mgr.session.query(Channel).get(item['id'])
             if old is not None:
                 tracked = old.tracked if track is None else track
-                mine = old.mine
+                new_mine = old.mine
             else:
                 tracked = False if track is None else track
+                new_mine = get_mine
 
             mgr.session.merge(Channel(
                 id=item['id'],
                 title=snippet['title'],
                 description=snippet['description'],
-                mine=mine,
+                mine=new_mine,
                 tracked=tracked,
             ))
 
         params = {'part': 'id,snippet'}
-        if mine:
+        if get_mine:
             params['mine'] = 'true'
         elif ids:
             params['id'] = ','.join(ids)

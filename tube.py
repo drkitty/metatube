@@ -28,7 +28,7 @@ def main():
                 print '{:>35}  {}'.format(channel.id, channel.title)
         if args.list_playlists:
             for playlist in mgr.session.query(Playlist):
-                print '{} (~{})'.format(playlist.id, playlist.title)
+                print '{} (~{})'.format(playlist.title, playlist.channel.title)
         if args.find_playlists:
             for channel in mgr.session.query(Channel).filter(
                     Channel.tracked == True):

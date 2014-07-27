@@ -70,13 +70,13 @@ class Video(Base):
     __tablename__ = 'video'
 
     id = Column(String(16), primary_key=True)
-    title = Column(String(100))
+    title = Column(String(100), nullable=False)
     description = Column(Text)
-    date_published = Column(DateTime)
-    channel_id = Column(String(40), ForeignKey('channel.id'))
+    date_published = Column(DateTime, nullable=False)
+    channel_id = Column(String(40), ForeignKey('channel.id'), nullable=False)
     playlist_videos = relationship('PlaylistVideo', backref='video')
-    downloaded = Column(Boolean)
-    skip = Column(Boolean)
+    downloaded = Column(Boolean, nullable=False, default=False)
+    skip = Column(Boolean, nullable=False, default=False)
 
     def __repr__(self):
         return '<Video: "{}">'.format(self.title.encode('ascii', 'replace'))
@@ -118,9 +118,9 @@ class Playlist(Base):
     __tablename__ = 'playlist'
 
     id = Column(String(40), primary_key=True)
-    title = Column(String(60))
+    title = Column(String(60), nullable=False)
     description = Column(Text)
-    channel_id = Column(String(40), ForeignKey('channel.id'))
+    channel_id = Column(String(40), ForeignKey('channel.id'), nullable=False)
     playlist_videos = relationship('PlaylistVideo', backref='playlist')
 
     def __repr__(self):
@@ -211,10 +211,10 @@ class Channel(Base):
     __tablename__ = 'channel'
 
     id = Column(String(40), primary_key=True)
-    title = Column(String(200))
+    title = Column(String(200), nullable=False)
     description = Column(Text)
-    mine = Column(Boolean)
-    tracked = Column(Boolean)
+    mine = Column(Boolean, nullable=False, default=False)
+    tracked = Column(Boolean, nullable=False, default=False)
     playlists = relationship('Playlist', backref='channel')
     videos = relationship('Video', backref='channel')
 

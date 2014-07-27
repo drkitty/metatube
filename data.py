@@ -76,6 +76,7 @@ class Video(Base):
     channel_id = Column(String(40), ForeignKey('channel.id'))
     playlist_videos = relationship('PlaylistVideo', backref='video')
     downloaded = Column(Boolean)
+    skip = Column(Boolean)
 
     def __repr__(self):
         return '<Video: "{}">'.format(self.title.encode('ascii', 'replace'))
@@ -146,13 +147,34 @@ class Playlist(Base):
 
 
     def fetch_playlist_videos(self, mgr):
+        video_ids = []
+        playlist_videos = []
+
+        def process_playlist_item(item):
+            snippet = item['snippet']
+            video_id = snippet['resourceId']['videoId']
+
+            video_ids.append(video_id)
+            playlist_videos.append(PlaylistVideo(
+                video_id=video_id,
+                playlist_id=self.id,
+                position=snippet['position'],
+            ))
+
+        mgr.api_client.get('/playlistItems', {
+            'part': 'snippet',
+            'fields': 'items/snippet(position,resourceId)',
+            'playlistId': self.id,
+        }, process_playlist_item)
+
+        fetched_video_ids = []
+
         def process_video(item):
             snippet = item['snippet']
 
             Channel.fetch_channels(mgr, ids=(snippet['channelId'],))
-
             v = Video(
-                id=snippet['resourceId']['videoId'],
+                id=item['id'],
                 title=snippet['title'],
                 description=snippet['description'],
                 date_published=dateutil.parser.parse(
@@ -160,16 +182,20 @@ class Playlist(Base):
                 channel_id=snippet['channelId'],
             )
             mgr.session.merge(v)
-            mgr.session.merge(PlaylistVideo(
-                video_id=v.id,
-                playlist_id=self.id,
-                position=snippet['position'],
-            ))
+            fetched_video_ids.append(item['id'])
 
-        mgr.api_client.get('/playlistItems', {
+        mgr.api_client.get('/videos', {
             'part': 'id,snippet',
-            'playlistId': self.id,
+            'id': ','.join(video_ids),
+            'fields': 'items(id,snippet)',
         }, process_video)
+
+        for playlist_video in playlist_videos:
+            # If a video is removed, sometimes its information can be accessed
+            # via the /playlistItems endpoint even if it's not accessible via
+            # the /videos endpoint.
+            if playlist_video.video_id in fetched_video_ids:
+                mgr.session.merge(playlist_video)
 
 
 class PlaylistVideo(Base):

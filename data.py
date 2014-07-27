@@ -216,12 +216,18 @@ class Channel(Base):
 
             cls.fetched.add(item['id'])
 
+            current = mgr.session.query(Channel).get(item['id'])
+            if current is not None:
+                tracked = current.tracked if track is None else track
+            else:
+                tracked = False if track is None else track
+
             mgr.session.merge(Channel(
                 id=item['id'],
                 title=snippet['title'],
                 description=snippet['description'],
-                tracked=track,
                 mine=mine,
+                tracked=tracked,
             ))
 
         params = {'part': 'id,snippet'}

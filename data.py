@@ -64,11 +64,6 @@ class EverythingManager(object):
         self.session.close()
 
 
-def format_playlist(playlist_id, playlist_title, channel_title):
-    return '{:>35}  {} (~{})'.format(
-        playlist_id, playlist_title, channel_title)
-
-
 class Video(Base):
     __tablename__ = 'video'
 
@@ -273,19 +268,3 @@ class Channel(Base):
         }, process_channel)
 
         return playlists
-
-    def fetch_playlists(self, mgr, ids=()):
-        def process_playlist(item):
-            snippet = item['snippet']
-
-            mgr.session.merge(Playlist(
-                id=item['id'],
-                title=snippet['title'],
-                description=snippet['description'],
-                channel_id=self.id,
-            ))
-
-        mgr.api_client.get('/playlists', {
-            'part': 'snippet',
-            'id': ','.join(ids),
-        }, process_playlist)

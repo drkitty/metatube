@@ -84,6 +84,8 @@ class Video(Base):
     def download(self, mgr):
         try:
             if os.path.getsize('dl/' + self.id) != 0:
+                self.downloaded = True
+                mgr.session.commit()
                 return
         except OSError as e:
             if e.errno != 2:  # 'No such file or directory'
@@ -111,7 +113,7 @@ class Video(Base):
         os.rename('temp', 'dl/' + self.id)
 
         self.downloaded = True
-        mgr.session.merge(self)
+        mgr.session.commit()
 
 
 class Playlist(Base):

@@ -286,11 +286,13 @@ class Channel(Base):
                 'id': ','.join(playlist_ids),
             }, process_playlist)
 
+        # Find normal playlists.
         mgr.api_client.get('/playlists', {
             'part': 'snippet',
             'channelId': self.id,
         }, process_playlist)
 
+        # Find special playlists.
         mgr.api_client.get('/channels', {
             'part': 'contentDetails',
             'id': self.id,

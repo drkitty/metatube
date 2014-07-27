@@ -165,7 +165,7 @@ class Playlist(Base):
 
         mgr.api_client.get('/playlistItems', {
             'part': 'snippet',
-            'fields': 'items/snippet(position,resourceId)',
+            'fields': 'items/snippet(position,resourceId),nextPageToken',
             'playlistId': self.id,
         }, process_playlist_item)
 
@@ -259,7 +259,7 @@ class Channel(Base):
 
         params = {
             'part': 'id,snippet',
-            'fields': 'items(id,snippet(title,description))'
+            'fields': 'items(id,snippet(title,description)),nextPageToken'
         }
         if get_mine:
             params['mine'] = 'true'
@@ -289,21 +289,21 @@ class Channel(Base):
             mgr.api_client.get('/playlists', {
                 'part': 'snippet',
                 'id': ','.join(playlist_ids),
-                'fields': 'items(id,snippet/title)',
+                'fields': 'items(id,snippet/title),nextPageToken',
             }, process_playlist)
 
         # Find normal playlists.
         mgr.api_client.get('/playlists', {
             'part': 'snippet',
             'channelId': self.id,
-            'fields': 'items(id,snippet/title)',
+            'fields': 'items(id,snippet/title),nextPageToken',
         }, process_playlist)
 
         # Find special playlists.
         mgr.api_client.get('/channels', {
             'part': 'contentDetails',
             'id': self.id,
-            'fields': 'items/contentDetails/relatedPlaylists',
+            'fields': 'items/contentDetails/relatedPlaylists,nextPageToken',
         }, process_channel)
 
         return playlists

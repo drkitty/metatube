@@ -14,6 +14,7 @@ from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 import settings
+from client import authentication_request_url, GoogleAPIClient
 
 
 CHUNK_SIZE = 100000
@@ -37,6 +38,32 @@ Base = declarative_base()
 Session = sessionmaker(bind=engine)
 
 
+class EverythingManager(object):
+    def __init__(self):
+        self.api_client = GoogleAPIClient()
+        if self.api_client.access_token is None:
+            print ('Open the following URL in your Web browser and grant '
+                   'metatube read-only access to your account.')
+            print authentication_request_url
+            print
+            print 'Then enter the authorization code here:'
+            code = raw_input('> ')
+            self.api_client.get_token_pair(code)
+            print
+
+        self.session = Session()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            self.session.commit()
+        else:
+            self.session.rollback()
+        self.session.close()
+
+
 def format_playlist(playlist_id, playlist_title, channel_title):
     return '{:>35}  {} (~{})'.format(
         playlist_id, playlist_title, channel_title)
@@ -56,7 +83,7 @@ class Video(Base):
     def __repr__(self):
         return '<Video: "{}">'.format(self.title.encode('ascii', 'replace'))
 
-    def download(self):
+    def download(self, mgr):
         try:
             if os.path.getsize('dl/' + self.id) != 0:
                 return
@@ -84,10 +111,9 @@ class Video(Base):
             if e.errno != 17:  # 'File exists'
                 raise
         os.rename('temp', 'dl/' + self.id)
+
         self.downloaded = True
-        session = Session()
-        session.merge(self)
-        session.commit()
+        mgr.session.merge(self)
 
 
 class Playlist(Base):
@@ -103,37 +129,30 @@ class Playlist(Base):
         return '<Playlist: "{}">'.format(self.title.encode('ascii', 'replace'))
 
     @classmethod
-    def fetch_playlists(cls, client, ids):
-        session = Session()
-
+    def fetch_playlists(cls, mgr, ids):
         def process_playlist(item):
             snippet = item['snippet']
 
-            Channel.fetch_channels(client, ids=(snippet['channelId'],))
+            Channel.fetch_channels(mgr, ids=(snippet['channelId'],))
 
-            session.merge(Playlist(
+            mgr.session.merge(Playlist(
                 id=item['id'],
                 title=snippet['title'],
                 description=snippet['description'],
                 channel_id=snippet['channelId'],
             ))
 
-        client.get('/playlists', {
+        mgr.api_client.get('/playlists', {
             'part': 'snippet',
             'id': ','.join(ids),
         }, process_playlist)
 
-        session.commit()
 
-
-    def fetch_playlist_videos(self, client):
-        session = Session()
-
+    def fetch_playlist_videos(self, mgr):
         def process_video(item):
             snippet = item['snippet']
 
-            print snippet['channelId']
-            Channel.fetch_channels(client, ids=(snippet['channelId'],))
+            Channel.fetch_channels(mgr, ids=(snippet['channelId'],))
 
             v = Video(
                 id=snippet['resourceId']['videoId'],
@@ -143,19 +162,17 @@ class Playlist(Base):
                     snippet['publishedAt'].rstrip('Z')),
                 channel_id=snippet['channelId'],
             )
-            session.merge(v)
-            session.merge(PlaylistVideo(
+            mgr.session.merge(v)
+            mgr.session.merge(PlaylistVideo(
                 video_id=v.id,
                 playlist_id=self.id,
                 position=snippet['position'],
             ))
 
-        client.get('/playlistItems', {
+        mgr.api_client.get('/playlistItems', {
             'part': 'id,snippet',
             'playlistId': self.id,
         }, process_video)
-
-        session.commit()
 
 
 class PlaylistVideo(Base):
@@ -184,96 +201,84 @@ class Channel(Base):
         return '<Channel: "{}">'.format(self.title.encode('ascii', 'replace'))
 
     @classmethod
-    def fetch_channels(cls, client, ids=(), username=None, track=False):
-        get_mine = bool(not ids and not username)
+    def fetch_channels(cls, mgr, ids=(), username=None, track=None):
+        mine = bool(not ids and not username)
 
         ids = filter(lambda id: id not in cls.fetched, ids)
-        if not ids and not username and not get_mine:
+        if not ids and not username and not mine:
             return
         if ids and username:
             raise Exception(
                 'You cannot call this method with both `ids` and `username`')
 
-        fetched = set()
-        session = Session()
-
         def process_channel(item):
             snippet = item['snippet']
 
-            fetched.add(item['id'])
+            cls.fetched.add(item['id'])
 
-            session.merge(Channel(
+            mgr.session.merge(Channel(
                 id=item['id'],
                 title=snippet['title'],
                 description=snippet['description'],
-                mine=get_mine,
                 tracked=track,
+                mine=mine,
             ))
 
         params = {'part': 'id,snippet'}
-        if get_mine:
+        if mine:
             params['mine'] = 'true'
         elif ids:
             params['id'] = ','.join(ids)
         elif username:
-            params['forUsername'] = ','.join(ids)
+            params['forUsername'] = username
         else:
             return
-        client.get('/channels', params, process_channel)
+        mgr.api_client.get('/channels', params, process_channel)
 
-        session.commit()
-        cls.fetched.update(fetched)
+    def find_playlists(self, mgr):
+        playlists = []
 
-    def list_normal_playlists(self, client):
         def process_playlist(item):
             snippet = item['snippet']
 
-            print format_playlist(
-                item['id'], item['snippet']['title'], self.title)
+            playlists.append({
+                'id': item['id'],
+                'title': item['snippet']['title'],
+            })
 
-        client.get('/playlists', {
+        def process_channel(item):
+            special_playlists = item['contentDetails']['relatedPlaylists']
+            playlist_ids = special_playlists.itervalues()
+
+            mgr.api_client.get('/playlists', {
+                'part': 'id,snippet',
+                'id': ','.join(playlist_ids),
+            }, process_playlist)
+
+        mgr.api_client.get('/playlists', {
             'part': 'snippet',
             'channelId': self.id,
         }, process_playlist)
 
-    def fetch_playlists(self, client, ids=()):
-        session = Session()
+        mgr.api_client.get('/channels', {
+            'part': 'contentDetails',
+            'id': self.id,
+        }, process_channel)
 
+        return playlists
+
+    def fetch_playlists(self, mgr, ids=()):
         def process_playlist(item):
             snippet = item['snippet']
 
-            session.merge(Playlist(
+            mgr.session.merge(Playlist(
                 id=item['id'],
                 title=snippet['title'],
                 description=snippet['description'],
                 channel_id=self.id,
             ))
 
-        client.get('/playlists', {
+        mgr.api_client.get('/playlists', {
             'part': 'snippet',
             'id': ','.join(ids),
         }, process_playlist)
-
-        session.commit()
-
-    def list_special_playlists(self, client):
-        def process_playlist(item):
-            snippet = item['snippet']
-
-            print format_playlist(
-                item['id'], item['snippet']['title'], self.title)
-
-        def process_channel(item):
-            special_playlists = item['contentDetails']['relatedPlaylists']
-            playlist_ids = special_playlists.itervalues()
-
-            client.get('/playlists', {
-                'part': 'id,snippet',
-                'id': ','.join(playlist_ids),
-            }, process_playlist)
-
-
-        client.get('/channels', {
-            'part': 'contentDetails',
-            'id': self.id,
-        }, process_channel)

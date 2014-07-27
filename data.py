@@ -255,7 +255,10 @@ class Channel(Base):
                 tracked=tracked,
             ))
 
-        params = {'part': 'id,snippet'}
+        params = {
+            'part': 'id,snippet',
+            'fields': 'items(id,snippet(title,description))'
+        }
         if get_mine:
             params['mine'] = 'true'
         elif ids:
@@ -282,20 +285,23 @@ class Channel(Base):
             playlist_ids = special_playlists.itervalues()
 
             mgr.api_client.get('/playlists', {
-                'part': 'id,snippet',
+                'part': 'snippet',
                 'id': ','.join(playlist_ids),
+                'fields': 'items(id,snippet/title)',
             }, process_playlist)
 
         # Find normal playlists.
         mgr.api_client.get('/playlists', {
             'part': 'snippet',
             'channelId': self.id,
+            'fields': 'items(id,snippet/title)',
         }, process_playlist)
 
         # Find special playlists.
         mgr.api_client.get('/channels', {
             'part': 'contentDetails',
             'id': self.id,
+            'fields': 'items/contentDetails/relatedPlaylists',
         }, process_channel)
 
         return playlists

@@ -44,6 +44,7 @@ def main():
             Playlist.fetch_playlists(mgr, args.add_playlists.split(','))
         if args.update:
             for playlist in mgr.session.query(Playlist):
+                print '{} (~{})'.format(playlist.title, playlist.channel.title)
                 playlist.fetch_playlist_videos(mgr)
         if args.download:
             for video in mgr.session.query(Video):

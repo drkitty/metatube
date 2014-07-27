@@ -234,7 +234,7 @@ class Channel(Base):
         elif username:
             params['forUsername'] = username
         else:
-            return
+            raise Exception('This should never happen')
         mgr.api_client.get('/channels', params, process_channel)
 
     def find_playlists(self, mgr):

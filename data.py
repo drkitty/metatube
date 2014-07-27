@@ -4,6 +4,7 @@ import dateutil.parser
 import os
 import os.path
 import subprocess
+from itertools import islice
 from sys import stderr
 
 import oursql
@@ -186,11 +187,17 @@ class Playlist(Base):
             mgr.session.merge(v)
             fetched_video_ids.append(item['id'])
 
-        mgr.api_client.get('/videos', {
-            'part': 'id,snippet',
-            'id': ','.join(video_ids),
-            'fields': 'items(id,snippet)',
-        }, process_video)
+        video_ids = iter(video_ids)
+        while True:
+            video_id_chunk = list(islice(video_ids, 50))  # take 50
+            if not video_id_chunk:
+                break
+
+            mgr.api_client.get('/videos', {
+                'part': 'id,snippet',
+                'id': ','.join(video_id_chunk),
+                'fields': 'items(id,snippet),nextPageToken',
+            }, process_video)
 
         for playlist_video in playlist_videos:
             # If a video is removed, sometimes its information can be accessed

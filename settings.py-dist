@@ -1,3 +1,6 @@
+from __future__ import unicode_literals
+
+
 client_id = 'FIXME'
 client_secret = 'FIXME'
 

@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import dateutil.parser
 import os
 import os.path
@@ -30,7 +32,7 @@ def utf8mb4_connect(**kwargs):
 
 
 engine = create_engine('mysql+oursql://metatube@localhost/metatubedb',
-                       echo=settings.debug, encoding='utf_8',
+                       echo=settings.debug, encoding=b'utf_8',
                        creator=utf8mb4_connect)
 
 Base = declarative_base()

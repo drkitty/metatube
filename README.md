@@ -15,7 +15,7 @@ cd metatube
 2. Set up settings.
 
     ```none
-cp settings.py-dist setting.py
+cp settings.py-dist settings.py
     ```
 
     Put your desired settings in `settings.py`.

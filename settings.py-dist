@@ -7,7 +7,7 @@ client_secret = 'FIXME'
 database = {
     'host': 'FIXME',
     'user': 'FIXME',
-	'passwd': 'FIXME',
+    'passwd': 'FIXME',
     'db': 'FIXME',
 }
 

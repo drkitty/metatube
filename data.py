@@ -71,7 +71,7 @@ class Video(Base):
     __tablename__ = 'video'
 
     id = Column(String(16), primary_key=True)
-    title = Column(String(100), nullable=False)
+    title = Column(String(400), nullable=False)  # TODO: Is this right?
     description = Column(Text)
     date_published = Column(DateTime, nullable=False)
     channel_id = Column(String(40), ForeignKey('channel.id'), nullable=False)

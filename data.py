@@ -76,7 +76,8 @@ class Video(Base):
     date_published = Column(DateTime, nullable=False)
     channel_id = Column(String(40), ForeignKey('channel.id'), nullable=False)
     playlist_videos = relationship('PlaylistVideo', backref='video')
-    downloaded = Column(Boolean, nullable=False, default=False)
+    video_downloaded = Column(Boolean, nullable=False, default=False)
+    thumbnail_downloaded = Column(Boolean, nullable=False, default=False)
     skip = Column(Boolean, nullable=False, default=False)
 
     def __repr__(self):
@@ -85,13 +86,28 @@ class Video(Base):
     def download(self, mgr):
         try:
             if os.path.getsize('dl/' + self.id) != 0:
-                self.downloaded = True
+                self.video_downloaded = True
                 mgr.session.commit()
-                return
         except OSError as e:
             if e.errno != 2:  # 'No such file or directory'
                 raise
 
+        try:
+            if os.path.getsize('thumbnails/' + self.id) != 0:
+                self.thumbnail_downloaded = True
+                mgr.session.commit()
+        except OSError as e:
+            if e.errno != 2:  # 'No such file or directory'
+                raise
+
+        if not self.video_downloaded and self.download_video(mgr):
+            self.video_downloaded = True
+            mgr.session.commit()
+        if not self.thumbnail_downloaded and self.download_thumbnail(mgr):
+            self.thumbnail_downloaded = True
+            mgr.session.commit()
+
+    def download_video(self, mgr):
         p = subprocess.Popen(
             ('youtube-dl', '-g', 'https://www.youtube.com/watch?v=' + self.id),
             stdout=subprocess.PIPE)
@@ -100,7 +116,7 @@ class Video(Base):
         if p.returncode != 0:
             stderr.write('youtube-dl failed with error code {}\n'.format(
                 p.returncode))
-            return
+            return False
         with open('temp', 'w') as f:
             for chunk in requests.get(url, stream=True).iter_content(
                     CHUNK_SIZE):
@@ -113,8 +129,34 @@ class Video(Base):
                 raise
         os.rename('temp', 'dl/' + self.id)
 
-        self.downloaded = True
-        mgr.session.commit()
+        return True
+
+    def download_thumbnail(self, mgr):
+        def process_video(item):
+            url = item['snippet']['thumbnails']['high']['url']
+            with open('temp', 'w') as f:
+                for chunk in requests.get(url, stream=True).iter_content(
+                        CHUNK_SIZE):
+                    f.write(chunk)
+
+        try:
+            mgr.api_client.get('/videos', {
+                'part': 'snippet',
+                'id': self.id,
+                'fields': 'items/snippet/thumbnails',
+            }, process_video)
+        except Exception as e:
+            stderr.write('Could not download thumbnail.')
+            raise
+
+        try:
+            os.mkdir('thumbnails')
+        except OSError as e:
+            if e.errno != 17:  # 'File exists'
+                raise
+        os.rename('temp', 'thumbnails/' + self.id)
+
+        return True
 
 
 class Playlist(Base):

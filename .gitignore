@@ -1,6 +1,8 @@
 /.env
 /settings.py
 /tokens.txt
+/dl/
+/thumbnails/
 
 .*.sw?
 *.pyc

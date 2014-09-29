@@ -139,6 +139,13 @@ class Video(Base):
                         CHUNK_SIZE):
                     f.write(chunk)
 
+            try:
+                os.mkdir('thumbnails')
+            except OSError as e:
+                if e.errno != 17:  # 'File exists'
+                    raise
+            os.rename('temp', 'thumbnails/' + self.id)
+
         try:
             mgr.api_client.get('/videos', {
                 'part': 'snippet',
@@ -147,14 +154,8 @@ class Video(Base):
             }, process_video)
         except Exception as e:
             stderr.write('Could not download thumbnail.')
-            raise
-
-        try:
-            os.mkdir('thumbnails')
-        except OSError as e:
-            if e.errno != 17:  # 'File exists'
-                raise
-        os.rename('temp', 'thumbnails/' + self.id)
+            stderr.write('Original exception: {}'.format(e))
+            return False
 
         return True
 

@@ -253,9 +253,12 @@ class Playlist(Base):
 class PlaylistVideo(Base):
     __tablename__ = 'playlistvideo'
 
-    video_id = Column(String(16), ForeignKey('video.id'), primary_key=True)
-    playlist_id = Column(String(40), ForeignKey('playlist.id'),
-                         primary_key=True)
+    video_id = Column(
+        String(16), ForeignKey('video.id', ondelete='CASCADE'),
+        primary_key=True)
+    playlist_id = Column(
+        String(40), ForeignKey('playlist.id', ondelete='CASCADE'),
+        primary_key=True)
     position = Column(Integer, autoincrement=False, primary_key=True)
 
 

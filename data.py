@@ -83,31 +83,16 @@ class Video(Base):
     def __repr__(self):
         return '<Video: "{}">'.format(self.title.encode('ascii', 'replace'))
 
-    def download(self, mgr):
+    def download_video(self, mgr):
         try:
             if os.path.getsize('dl/' + self.id) != 0:
                 self.video_downloaded = True
                 mgr.session.commit()
+                return
         except OSError as e:
             if e.errno != 2:  # 'No such file or directory'
                 raise
 
-        try:
-            if os.path.getsize('thumbnails/' + self.id) != 0:
-                self.thumbnail_downloaded = True
-                mgr.session.commit()
-        except OSError as e:
-            if e.errno != 2:  # 'No such file or directory'
-                raise
-
-        if not self.video_downloaded and self.download_video(mgr):
-            self.video_downloaded = True
-            mgr.session.commit()
-        if not self.thumbnail_downloaded and self.download_thumbnail(mgr):
-            self.thumbnail_downloaded = True
-            mgr.session.commit()
-
-    def download_video(self, mgr):
         p = subprocess.Popen(
             ('youtube-dl', '-g', 'https://www.youtube.com/watch?v=' + self.id),
             stdout=subprocess.PIPE)
@@ -116,7 +101,7 @@ class Video(Base):
         if p.returncode != 0:
             stderr.write('youtube-dl failed with error code {}\n'.format(
                 p.returncode))
-            return False
+            return
         with open('temp', 'w') as f:
             for chunk in requests.get(url, stream=True).iter_content(
                     CHUNK_SIZE):
@@ -129,9 +114,19 @@ class Video(Base):
                 raise
         os.rename('temp', 'dl/' + self.id)
 
-        return True
+        self.video_downloaded = True
+        mgr.session.commit()
 
     def download_thumbnail(self, mgr):
+        try:
+            if os.path.getsize('thumbnails/' + self.id) != 0:
+                self.thumbnail_downloaded = True
+                mgr.session.commit()
+                return
+        except OSError as e:
+            if e.errno != 2:  # 'No such file or directory'
+                raise
+
         def process_video(item):
             url = item['snippet']['thumbnails']['high']['url']
             with open('temp', 'w') as f:
@@ -153,11 +148,12 @@ class Video(Base):
                 'fields': 'items/snippet/thumbnails',
             }, process_video)
         except Exception as e:
-            stderr.write('Could not download thumbnail.')
-            stderr.write('Original exception: {}'.format(e))
-            return False
+            stderr.write('Could not download thumbnail.\n')
+            stderr.write('Original exception: {}\n'.format(e))
+            return
 
-        return True
+        self.thumbnail_downloaded = True
+        mgr.session.commit()
 
 
 class Playlist(Base):

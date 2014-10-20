@@ -65,9 +65,24 @@ def main():
                 print '{} (~{})'.format(playlist.title, playlist.channel.title)
                 playlist.fetch_playlist_videos(mgr)
         elif args.download:
-            for video in mgr.session.query(Video).filter(Video.skip == False):
-                print '{} (~{})'.format(video.title, video.channel.title)
-                video.download(mgr)
+            videos = mgr.session.query(Video).filter(Video.skip == False)
+            print '#################################'
+            print '### Downloading thumbnails... ###'
+            print '#################################'
+            print
+            for video in videos.filter(Video.thumbnail_downloaded == False):
+                print 'thumbnail "{}" (~{})'.format(
+                    video.title, video.channel.title)
+                video.download_thumbnail(mgr)
+            print
+            print '#############################'
+            print '### Downloading videos... ###'
+            print '#############################'
+            print
+            for video in videos.filter(Video.video_downloaded == False):
+                print 'video "{}" (~{})'.format(
+                    video.title, video.channel.title)
+                video.download_video(mgr)
 
 
 if __name__ == '__main__':
